@@ -1,14 +1,12 @@
 module TikzPictures
 
-export TikzPicture, PDF, TEX, TIKZ, SVG, save, tikzDeleteIntermediate, tikzCommand, tikzUseTectonic, TikzDocument, push!
+export TikzPicture, PDF, TEX, TIKZ, SVG, save, tikzDeleteIntermediate, tikzCommand, TikzDocument, push!
 import Base: push!
 import LaTeXStrings: LaTeXString, @L_str
-import Tectonic: tectonic
 export LaTeXString, @L_str
 
 _tikzDeleteIntermediate = true
 _tikzCommand = "lualatex"
-_tikzUseTectonic = false
 
 mutable struct TikzPicture
     data::AbstractString
@@ -19,7 +17,7 @@ mutable struct TikzPicture
     height::AbstractString
     keepAspectRatio::Bool
     enableWrite18::Bool
-    TikzPicture(data::AbstractString; options="", preamble="", environment="tikzpicture", width="", height="", keepAspectRatio=true, enableWrite18=true) = new(data, options, preamble, environment, width, height, keepAspectRatio, enableWrite18)
+    TikzPicture(data::AbstractString; options = "", preamble = "", environment = "tikzpicture", width = "", height = "", keepAspectRatio = true, enableWrite18 = true) = new(data, options, preamble, environment, width, height, keepAspectRatio, enableWrite18)
 end
 
 mutable struct TikzDocument
@@ -73,25 +71,14 @@ function tikzCommand()
     _tikzCommand
 end
 
-function tikzUseTectonic(value::Bool)
-    global _tikzUseTectonic
-    _tikzUseTectonic = value
-    nothing
-end
-
-function tikzUseTectonic()
-    global _tikzUseTectonic
-    _tikzUseTectonic
-end
-
-function push!(td::TikzDocument, tp::TikzPicture; caption="")
+function push!(td::TikzDocument, tp::TikzPicture; caption = "")
     push!(td.pictures, tp)
     push!(td.captions, caption)
 end
 
 function removeExtension(filename::AbstractString, extension::AbstractString)
     if endswith(filename, extension) || endswith(filename, uppercase(extension))
-        return filename[1:(end - length(extension))]
+        return filename[1:(end-length(extension))]
     else
         return filename
     end
@@ -107,14 +94,14 @@ end
 mutable struct TEX <: SaveType
     filename::AbstractString
     limit_to::Symbol
-    TEX(filename::AbstractString; include_preamble::Bool=true, limit_to::Symbol=(include_preamble ? :all : :picture)) =
+    TEX(filename::AbstractString; include_preamble::Bool = true, limit_to::Symbol = (include_preamble ? :all : :picture)) =
         new(removeExtension(filename, ".tex"), limit_to)
 end
 
 mutable struct TIKZ <: SaveType
     filename::AbstractString
     limit_to::Symbol
-    TIKZ(filename::AbstractString; include_preamble::Bool=true, limit_to::Symbol=(include_preamble ? :all : :picture)) = new(removeExtension(filename, ".tikz"), limit_to)
+    TIKZ(filename::AbstractString; include_preamble::Bool = true, limit_to::Symbol = (include_preamble ? :all : :picture)) = new(removeExtension(filename, ".tikz"), limit_to)
 end
 
 mutable struct SVG <: SaveType
@@ -122,7 +109,7 @@ mutable struct SVG <: SaveType
     SVG(filename::AbstractString) = new(removeExtension(filename, ".svg"))
 end
 
-extension(f::SaveType) = lowercase(split("$(typeof(f))",".")[end])
+extension(f::SaveType) = lowercase(split("$(typeof(f))", ".")[end])
 
 resize(tp::TikzPicture) = !isempty(tp.width) || !isempty(tp.height)
 
@@ -130,13 +117,13 @@ resize(tp::TikzPicture) = !isempty(tp.width) || !isempty(tp.height)
 function execute(cmd::Cmd)
     out = Pipe()
     err = Pipe()
-    process = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err))
+    process = run(pipeline(ignorestatus(cmd), stdout = out, stderr = err))
     close(out.in)
     close(err.in)
     (
-      stdout = String(read(out)), 
-      stderr = String(read(err)),  
-      code = process.exitcode
+        stdout = String(read(out)),
+        stderr = String(read(err)),
+        code = process.exitcode
     )
 end
 
@@ -273,38 +260,22 @@ end
 
 _joinpath(a, b) = "$a/$b"
 
-function _run(tp::TikzPicture, temp_dir::AbstractString, temp_filename::AbstractString; dvi::Bool=false)
+function _run(tp::TikzPicture, temp_dir::AbstractString, temp_filename::AbstractString; dvi::Bool = false)
     arg = String[tikzCommand()]
     latexSuccess = false
     texlog = ""
-    if tikzUseTectonic() || !success(`$(tikzCommand()) -v`)
-        tectonic() do tectonic_bin
-            if dvi
-                error("Tectonic does not currently support dvi backend")
-            end
-            arg[1] = tectonic_bin
-            if tp.enableWrite18
-                push!(arg, "-Zshell-escape")
-            end
-            push!(arg, "-o$(temp_dir)")
-            result = execute(`$(arg) $(temp_filename*".tex")`)
-            latexSuccess = (result.code == 0)
-            texlog = result.stderr
-        end            
-    else
-        if tp.enableWrite18
-            push!(arg, "--enable-write18")
-        end
-        if dvi
-            push!(arg, "--output-format=dvi")
-        end
-        push!(arg, "--output-directory=$(temp_dir)")
-        latexSuccess = success(`$(arg) $(temp_filename*".tex")`)
-        try
-            texlog = read(temp_filename * ".log", String)
-        catch
-            texlog = read(_joinpath(temp_dir,"texput.log"), String)
-        end        
+    if tp.enableWrite18
+        push!(arg, "--enable-write18")
+    end
+    if dvi
+        push!(arg, "--output-format=dvi")
+    end
+    push!(arg, "--output-directory=$(temp_dir)")
+    latexSuccess = success(`$(arg) $(temp_filename*".tex")`)
+    try
+        texlog = read(temp_filename * ".log", String)
+    catch
+        texlog = read(_joinpath(temp_dir, "texput.log"), String)
     end
     return latexSuccess, texlog
 end
@@ -317,7 +288,7 @@ function save(f::PDF, tp::TikzPicture)
     # Call anonymous function to do task and automatically return
     cd(working_dir) do
         temp_dir = mktempdir("./")
-        temp_filename = _joinpath(temp_dir,basefilename)
+        temp_filename = _joinpath(temp_dir, basefilename)
 
         # Save the TEX file in tmp dir
         save(TEX(temp_filename * ".tex"), tp)
@@ -333,7 +304,7 @@ function save(f::PDF, tp::TikzPicture)
             @warn "$(basefilename).pdf already exists, overwriting!"
         end
         if latexSuccess
-            mv("$(temp_filename).pdf", "$(basefilename).pdf",force=true)
+            mv("$(temp_filename).pdf", "$(basefilename).pdf", force = true)
         end
 
         try
@@ -341,7 +312,7 @@ function save(f::PDF, tp::TikzPicture)
             # This failing is NOT critical either, so just make it a warning
             if tikzDeleteIntermediate()
                 # Delete tmp dir
-                rm(temp_dir, recursive=true)
+                rm(temp_dir, recursive = true)
             end
         catch
             @warn "TikzPictures: Your intermediate files are not being deleted."
@@ -370,7 +341,7 @@ function save(f::PDF, td::TikzDocument)
     cd(working_dir) do
         # Create tmp dir in working directory
         temp_dir = mktempdir("./")
-        temp_filename = _joinpath(temp_dir,basefilename)
+        temp_filename = _joinpath(temp_dir, basefilename)
 
         try
             save(TEX(temp_filename * ".tex"), td)
@@ -380,14 +351,14 @@ function save(f::PDF, td::TikzDocument)
             if isfile("$(basefilename).pdf")
                 @warn "$(basefilename).pdf already exists, overwriting!"
             end
-            mv("$(temp_filename).pdf", "$(basefilename).pdf",force=true)
+            mv("$(temp_filename).pdf", "$(basefilename).pdf", force = true)
 
             try
                 # Shouldn't need to be try-catched anymore, but best to be safe
                 # This failing is NOT critical either, so just make it a warning
                 if tikzDeleteIntermediate()
                     # Delete tmp dir
-                    rm(temp_dir, recursive=true)
+                    rm(temp_dir, recursive = true)
                 end
             catch
                 @warn "TikzPictures: Your intermediate files are not being deleted."
@@ -407,7 +378,7 @@ function save(f::SVG, tp::TikzPicture)
     cd(working_dir) do
         # Create tmp dir in working directory
         temp_dir = mktempdir("./")
-        temp_filename = _joinpath(temp_dir,basefilename)
+        temp_filename = _joinpath(temp_dir, basefilename)
 
         # Save the TEX file in tmp dir, then convert to SVG
         save(TEX(temp_filename * ".tex"), tp)
@@ -417,14 +388,14 @@ function save(f::SVG, tp::TikzPicture)
         if isfile("$(basefilename).svg")
             @warn "$(basefilename).svg already exists, overwriting!"
         end
-        mv("$(temp_filename).svg", "$(basefilename).svg",force=true)
+        mv("$(temp_filename).svg", "$(basefilename).svg", force = true)
 
         try
             # Shouldn't need to be try-catched anymore, but best to be safe
             # This failing is NOT critical either, so just make it a warning
             if tikzDeleteIntermediate()
                 # Delete tmp dir
-                rm(temp_dir, recursive=true)
+                rm(temp_dir, recursive = true)
             end
         catch
             @warn "TikzPictures: Your intermediate files are not being deleted."
